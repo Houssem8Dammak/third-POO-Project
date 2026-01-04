@@ -15,9 +15,9 @@ float Produit::getPrix()const{return this->prix;}
 int Produit::getQte()const{return this->qteStock;}
 void Produit::setQte(int newQte){this->qteStock = newQte;}
 void Produit::print()const{
-    std::cout << "id produit: " << this->idProduit << std::endl;
-    std::cout << "nom produit: " << this->nomProduit << std::endl;
-    std::cout << "categorie: " << this->categorie << std::endl;
-    std::cout << "prix de produit: " << this->prix << std::endl;
-    std::cout << "quantite en stock: " << this->qteStock << std::endl;
+    std::cout << "id produit: " << this->idProduit << " | "
+    << "nom produit: " << this->nomProduit << " | "
+    << "categorie: " << this->categorie << " | "
+    << "prix de produit: " << this->prix  << " | "
+    << "quantite en stock: " << this->qteStock << std::endl;
 }

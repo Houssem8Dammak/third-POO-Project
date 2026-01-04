@@ -2,6 +2,7 @@
 #include <list>
 #include <vector>
 #include <set>
+#include <map>
 #include <string>
 #include <algorithm>
 #include "produit.h"
@@ -54,21 +55,69 @@ void createList(vector<Produit>& vect,list<Produit*>& l){
     }
 }
 
+void createMap(vector<Produit>& vect,map<int,Produit*>& m){
+    for(auto& product: vect){
+        m[product.getId()] = &product;
+    }
+}
+
+bool isProductAlreadyExists(map<int, Produit*>& productMap, int id){
+    auto it = productMap.find(id);
+    
+    if(it != productMap.end()){
+        return true;
+    } else {
+        return false;
+    }
+}
+
+void rebuildMap(vector<Produit>& vect, map<int,Produit*>& m){
+    m.clear();
+    createMap(vect, m);
+}
+
+Produit* findProductById(map<int, Produit*>& productMap, int id){
+    auto it = productMap.find(id);
+    if(it != productMap.end()){
+        return it->second;
+    }
+    return nullptr;
+}
+
 void rebuildAvailableList(vector<Produit>& vect, list<Produit*>& l){
     l.clear();
     createList(vect, l);
 }
 
-void addProduct(vector<Produit> &vect, list<Produit*>& l, const set<string>& categories){
+void searchProductById(map<int, Produit*>& productMap){
+    int searchId;
+    cout << "Enter product ID to search: ";
+    cin >> searchId;
+    
+    Produit* product = findProductById(productMap, searchId);
+    
+    if(product){
+        cout << "\n--- PRODUCT FOUND ---" << endl;
+        product->print();
+        if(product->getQte() > 0){
+            cout << "Status: AVAILABLE " << endl;
+        } else {
+            cout << "Status: OUT OF STOCK " << endl;
+        }
+    } else {
+        cout << "\nProduct with ID " << searchId << " not found!" << endl;
+    }
+}
+
+void addProduct(vector<Produit> &vect, list<Produit*>& l, const set<string>& categories,map<int,Produit*>& m){
     cout << "we will begin the inesrtion process" << endl;
     
     //this part reads the values we want to add
-    cout << "insert the id of the product: " ; //if none is provided it will be the the id+1 of the last element in the vector
     int idBuffer{};
-    cin >> idBuffer;
-    if(!idBuffer){
-        idBuffer = vect.back().getId()+1;
-    }
+    do{
+        cout << "insert the id of the product: " ;
+        cin >> idBuffer;
+    }while(isProductAlreadyExists(m,idBuffer));
 
     cout << "insert the name of the product: ";
     string nameBuffer{};
@@ -103,9 +152,10 @@ void addProduct(vector<Produit> &vect, list<Produit*>& l, const set<string>& cat
     vect.emplace_back(idBuffer,nameBuffer,categoryBuffer,priceBuffer,qteBuffer);
     //since the list contains ponietrs to the objects held by the vector so if the vector changes place in the memory the list doesn't get affected
     rebuildAvailableList(vect, l);
+    rebuildMap(vect,m);
 }
 
-void removeProduct(vector<Produit> &vect,list<Produit*>& l){
+void removeProduct(vector<Produit> &vect, list<Produit*>& l,map<int,Produit*>& m){
     //inserting index of the product to be removed
     int index;
     do{
@@ -120,6 +170,7 @@ void removeProduct(vector<Produit> &vect,list<Produit*>& l){
     vect.erase(vect.begin()+index-1);//removing from vector
 
     rebuildAvailableList(vect,l);
+    rebuildMap(vect,m);
 }
 
 void printAllProducts(vector<Produit> &vect){
@@ -213,12 +264,16 @@ int main(){
     "Food",
     "Books",
     "Sports"
-};
+    };
+    map<int,Produit*> productsMap{};
     //reading from file and creating the vector
     chargingFromFile(file, products);
     
     //creating the available products list
     createList(products, availableProducts);
+
+    //creating the products map
+    createMap(products, productsMap);
     
     int choice;
     bool running = true;
@@ -233,7 +288,8 @@ int main(){
         cout << "6. Restock a product" << endl;
         cout << "7. Sort products by name" << endl;
         cout << "8. Sort products by price" << endl;
-        cout << "9. Save and exit" << endl;
+        cout << "9. Search product by ID" << endl;
+        cout << "10. Save and exit" << endl;
         cout << "===============================================" << endl;
         cout << "Enter your choice: ";
         cin >> choice;
@@ -259,7 +315,7 @@ int main(){
                 
             case 3:
                 cout << "\n--- ADD NEW PRODUCT ---" << endl;
-                addProduct(products, availableProducts, validCategories);
+                addProduct(products, availableProducts, validCategories, productsMap);
                 cout << "Product added successfully!" << endl;
                 break;
                 
@@ -273,7 +329,7 @@ int main(){
                         cout << (i+1) << ". ID: " << products[i].getId() 
                              << " - " << products[i].getNom() << endl;
                     }
-                    removeProduct(products, availableProducts);
+                    removeProduct(products, availableProducts, productsMap);
                     cout << "Product removed successfully!" << endl;
                 }
                 break;
@@ -309,6 +365,7 @@ int main(){
                 cout << "\n--- SORTING BY NAME ---" << endl;
                 sortingByName(products);
                 rebuildAvailableList(products, availableProducts);
+                rebuildMap(products, productsMap);
                 cout << "Products sorted by name!" << endl;
                 printAllProducts(products);
                 break;
@@ -317,11 +374,21 @@ int main(){
                 cout << "\n--- SORTING BY PRICE ---" << endl;
                 sortingByPrice(products);
                 rebuildAvailableList(products, availableProducts);
+                rebuildMap(products, productsMap);
                 cout << "Products sorted by price!" << endl;
                 printAllProducts(products);
                 break;
-                
+            
             case 9:
+                cout << "\n--- SEARCH PRODUCT BY ID ---" << endl;
+                if(products.empty()){
+                    cout << "No products in inventory." << endl;
+                } else {
+                    searchProductById(productsMap);
+                }
+                break;
+                
+            case 10:
                 cout << "\n--- SAVING AND EXITING ---" << endl;
                 savingToFile(file, products);
                 cout << "Data saved successfully!" << endl;
@@ -335,7 +402,7 @@ int main(){
         }
         
         // Pause to let user read output
-        if(running && choice >= 1 && choice <= 8){
+        if(running && choice >= 1 && choice <= 9){
             cout << "\nPress Enter to continue...";
             cin.ignore();
             cin.get();

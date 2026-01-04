@@ -1,13 +1,13 @@
 #include <iostream>
 #include <list>
 #include <vector>
-#include <map>
-#include <sstream>
+#include <set>
 #include <string>
 #include <algorithm>
 #include "produit.h"
 #include "sortbyname.h"
 #include "sortbyprice.h"
+#include "idcheck.h"
 
 using namespace std;
 
@@ -20,14 +20,17 @@ void fileOpening(FILE **file,const char* openingMode){
 }
 
 void chargingFromFile(FILE* file, vector<Produit> &vect){
+    //opening file to read the data from it 
     fileOpening(&file,"r");
+    //initializing the temporary varibales 
     char line[256];
     int id, qte;
-    char nom[100], categorie[100];  // These are char arrays - CORRECT
+    char nom[100], categorie[100];  // These are char arrays 
     float prix;
     
     while(fgets(line, 256, file)){
         if(sscanf(line, "%d:%99[^:]:%99[^:]:%f:%d", &id, nom, categorie, &prix, &qte) == 5){
+            //emplace_back takes the argument that is supposed to be taken by the constructor and it constructs and adds it to the back of the vector (it combines constructor and .push_back)
             vect.emplace_back(id, std::string(nom), std::string(categorie), prix, qte);
         }
     }
@@ -37,9 +40,9 @@ void chargingFromFile(FILE* file, vector<Produit> &vect){
 
 void savingToFile(FILE* file,vector<Produit> &vect){
     fileOpening(&file,"w");
-    for_each(vect.begin(),vect.end(),[file](const Produit element){
+    for(const auto& element: vect){
         fprintf(file,"%d:%s:%s:%.2f:%d\n",element.getId(),element.getNom().c_str(),element.getCategorie().c_str(),element.getPrix(),element.getQte());
-    });
+    }
     fclose(file);
 }
 
@@ -56,9 +59,10 @@ void rebuildAvailableList(vector<Produit>& vect, list<Produit*>& l){
     createList(vect, l);
 }
 
-void addProduct(vector<Produit> &vect, list<Produit*>& l){
+void addProduct(vector<Produit> &vect, list<Produit*>& l, const set<string>& categories){
     cout << "we will begin the inesrtion process" << endl;
-
+    
+    //this part reads the values we want to add
     cout << "insert the id of the product: " ; //if none is provided it will be the the id+1 of the last element in the vector
     int idBuffer{};
     cin >> idBuffer;
@@ -70,9 +74,22 @@ void addProduct(vector<Produit> &vect, list<Produit*>& l){
     string nameBuffer{};
     cin >> nameBuffer;
 
-    cout << "insert the category of the product: ";
+    // Display available categories
+    cout << "\nAvailable categories:" << endl;
+    int i = 1;
+    for(const auto& cat : categories){
+        cout << i++ << ". " << cat << endl;
+    }
+
+    cout << "\ninsert the category of the product: ";
     string categoryBuffer{};
     cin >> categoryBuffer;
+
+    // Validate category
+    while(categories.find(categoryBuffer) == categories.end()){
+        cout << "Invalid category! Please choose from the list above: ";
+        cin >> categoryBuffer;
+    }
 
     cout << "insert the price of the product:";
     float priceBuffer{};
@@ -82,7 +99,9 @@ void addProduct(vector<Produit> &vect, list<Produit*>& l){
     int qteBuffer{};
     cin >> qteBuffer;
 
+    //constructs the object and adds it to the back of the vector
     vect.emplace_back(idBuffer,nameBuffer,categoryBuffer,priceBuffer,qteBuffer);
+    //since the list contains ponietrs to the objects held by the vector so if the vector changes place in the memory the list doesn't get affected
     rebuildAvailableList(vect, l);
 }
 
@@ -96,7 +115,7 @@ void removeProduct(vector<Produit> &vect,list<Produit*>& l){
 
     int idRemove = vect.at(index-1).getId(); //saving the index to use it for the list removal
     
-    l.erase(remove_if(l.begin(),l.end(),[idRemove](Produit* element){ return element->getId() == idRemove;}),l.end());//removing from list
+    l.erase(remove_if(l.begin(),l.end(),IdCheck(idRemove)),l.end());//removing from list
     
     vect.erase(vect.begin()+index-1);//removing from vector
 
@@ -104,9 +123,9 @@ void removeProduct(vector<Produit> &vect,list<Produit*>& l){
 }
 
 void printAllProducts(vector<Produit> &vect){
-    for_each(vect.begin(),vect.end(),[](const Produit element){
+    for(Produit& element: vect){
         element.print();
-    });
+    }
 }
 
 void sortingByName(vector<Produit>& vect){
@@ -118,9 +137,9 @@ void sortingByPrice(vector<Produit>& vect){
 }
 
 void printAvailableProducts(list<Produit*>& l){
-    for_each(l.begin(),l.end(),[](Produit* element){
+    for(Produit* element : l){
         element->print();
-    });
+    }
 }
 
 void sellingProduct(vector<Produit>& vect, list<Produit*>& l){
@@ -130,9 +149,7 @@ void sellingProduct(vector<Produit>& vect, list<Produit*>& l){
     cout << "insert the id of the product you sold: ";
     cin >> soldProductId;
 
-    auto it = find_if(vect.begin(),vect.end(),[soldProductId](const Produit element){
-        return element.getId() ==  soldProductId;
-    });
+    auto it = find_if(vect.begin(),vect.end(),IdCheck(soldProductId));
     
     if (it == vect.end()) {
         cout << "Product not found!" << endl;
@@ -142,17 +159,15 @@ void sellingProduct(vector<Produit>& vect, list<Produit*>& l){
     do{
         cout << "insert the quantity you sold: ";
         cin >> soldProductQte;
-    }while(soldProductQte < 0 || ((it->getQte () - soldProductQte) < 0));
+    }while(soldProductQte < 0 || ((it->getQte() - soldProductQte) < 0));
 
     //updates the value of qte in the vector
     int newQte {it->getQte() - soldProductQte};
     it->setQte(newQte);
 
-    //updates the value of qte 
+    //updates the list
      if(newQte == 0){
-        auto listIt = find_if(l.begin(), l.end(), [soldProductId](Produit* element){
-            return element->getId() == soldProductId;
-        });
+        auto listIt = find_if(l.begin(), l.end(), IdCheck(soldProductId));
         if(listIt != l.end()){
             l.erase(listIt);
         }
@@ -169,9 +184,7 @@ void restockingProduct(vector<Produit>& vect, list<Produit*>& l){
         cin >> restockProductQte;
     }while(restockProductQte < 0 );
 
-    auto it = find_if(vect.begin(),vect.end(),[restockProductId](const Produit element){
-        return element.getId() ==  restockProductId;
-    });
+    auto it = find_if(vect.begin(),vect.end(),IdCheck(restockProductId));
 
     if (it == vect.end()) {
         cout << "Product not found!" << endl;
@@ -181,7 +194,7 @@ void restockingProduct(vector<Produit>& vect, list<Produit*>& l){
     int newQte {it->getQte() + restockProductQte};
     it->setQte(newQte);
 
-    auto listIt = find_if(l.begin(),l.end(),[restockProductId](Produit* element){return element->getId() == restockProductId;});
+    auto listIt = find_if(l.begin(),l.end(),IdCheck(restockProductId));
     if(listIt == l.end()){
         l.push_back(&(*it));
     }
@@ -192,7 +205,15 @@ int main(){
     vector<Produit> products{};
     FILE* file = nullptr;
     list<Produit*> availableProducts;
-    
+    set<string> validCategories = {
+    "Electronics",
+    "Furniture",
+    "Accessories",
+    "Clothing",
+    "Food",
+    "Books",
+    "Sports"
+};
     //reading from file and creating the vector
     chargingFromFile(file, products);
     
@@ -238,7 +259,7 @@ int main(){
                 
             case 3:
                 cout << "\n--- ADD NEW PRODUCT ---" << endl;
-                addProduct(products, availableProducts);
+                addProduct(products, availableProducts, validCategories);
                 cout << "Product added successfully!" << endl;
                 break;
                 

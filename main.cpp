@@ -15,7 +15,7 @@ using namespace std;
 void fileOpening(FILE **file,const char* openingMode){
     *file = fopen("./produit.txt",openingMode);
     if (!(*file)){
-        cout << "Error in openening the file." << endl;
+        cout << "Error in opening the file." << endl;
         exit(1);
     }
 }
@@ -192,6 +192,7 @@ void printAvailableProducts(list<Produit*>& l){
         element->print();
     }
 }
+
 
 void sellingProduct(vector<Produit>& vect, list<Produit*>& l){
     int soldProductId;
@@ -397,7 +398,7 @@ int main(){
                 break;
                 
             default:
-                cout << "Invalid choice! Please enter a number between 1 and 9." << endl;
+                cout << "Invalid choice! Please enter a number between 1 and 10." << endl;
                 break;
         }
         
